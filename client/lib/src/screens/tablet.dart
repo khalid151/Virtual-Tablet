@@ -16,6 +16,7 @@ class TabletScreen extends StatefulWidget {
 
 class _TabletScreenState extends State<TabletScreen> {
   final _tabletAreaKey = GlobalKey();
+  bool _filled = false;
 
   void _handleEvents(PointerEvent event) {
     if (_tabletAreaKey.currentContext == null) {
@@ -43,7 +44,7 @@ class _TabletScreenState extends State<TabletScreen> {
     }
   }
 
-  Widget tabletArea(BuildContext context) => Hero(
+  Widget _tabletArea(BuildContext context) => Hero(
         key: _tabletAreaKey,
         tag: 'tablet_area',
         child: Stack(
@@ -55,7 +56,23 @@ class _TabletScreenState extends State<TabletScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  color: Theme.of(context).accentColor,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+            ),
+            Container(
+              alignment: Alignment.topRight,
+              margin: widget.margins + EdgeInsets.all(5),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onLongPress: () => setState(() => _filled = true),
+                  borderRadius: BorderRadius.circular(30),
+                  child: Icon(
+                    Icons.fullscreen,
+                    size: 30,
+                    color: Theme.of(context).focusColor,
+                  ),
                 ),
               ),
             ),
@@ -67,17 +84,36 @@ class _TabletScreenState extends State<TabletScreen> {
   Widget build(BuildContext context) {
     SystemChrome.setEnabledSystemUIOverlays([]);
 
-    return Scaffold(
-      body: Center(
-        child: AspectRatio(
-          aspectRatio: 16 / 9,
-          child: Listener(
-            onPointerUp: _handleEvents,
-            onPointerDown: _handleEvents,
-            onPointerHover: _handleEvents,
-            onPointerMove: _handleEvents,
-            child: tabletArea(context),
-          ),
+    return WillPopScope(
+      onWillPop: () async {
+        if (_filled) {
+          setState(() => _filled = false);
+          return false;
+        }
+        return true;
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Center(
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Listener(
+                  onPointerUp: _handleEvents,
+                  onPointerDown: _handleEvents,
+                  onPointerHover: _handleEvents,
+                  onPointerMove: _handleEvents,
+                  child: _tabletArea(context),
+                ),
+              ),
+            ),
+            IgnorePointer(
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 200),
+                color: _filled ? Colors.black : Colors.transparent,
+              ),
+            ),
+          ],
         ),
       ),
     );
