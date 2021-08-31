@@ -12,6 +12,9 @@
 
 #define DEVICE_NAME "Virtual Graphics Tablet"
 #define PORT 9000
+#define PING "VTABCON"
+#define PONG "VTABOK"
+#define MAGIC "VTAB"
 
 // button state
 #define BUTTON_UP 0
@@ -130,8 +133,9 @@ int main(int argc, char *argv[])
 
     // Setup UDP server
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    struct sockaddr_in addr;
+    struct sockaddr_in addr, client_addr;
     memset(&addr, 0, sizeof(addr));
+    memset(&client_addr, 0, sizeof(client_addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     addr.sin_port = htons(PORT);
@@ -160,14 +164,18 @@ int main(int argc, char *argv[])
      */
 
     struct stylus_event event;
+    socklen_t len = sizeof(client_addr);
 
     // Process events
     while(!stop && poll(&pfd, 1, -1) > -1) {
         memset(&event, 0, sizeof(event));
-        // TODO: will be changed later to handle events
-        if(recv(sockfd, &event, sizeof(event), MSG_DONTWAIT) > 0) {
+        if(recvfrom(sockfd, &event, sizeof(event), MSG_DONTWAIT, (struct sockaddr*) &client_addr, &len) > 0) {
+            // Report connection to client
+            if(!memcmp(event.magic, PING, strlen(PING))) {
+                sendto(sockfd, PONG, strlen(PONG), MSG_CONFIRM, (const struct sockaddr*) &client_addr, len);
+            }
 
-            if(!memcmp(event.magic, "VTAB", 4)) {
+            if(!memcmp(event.magic, MAGIC, strlen(MAGIC))) {
                 send_event(dev, EV_ABS, ABS_X, event.x);
                 send_event(dev, EV_ABS, ABS_Y, event.y);
                 send_event(dev, EV_ABS, ABS_PRESSURE, event.pressure);
