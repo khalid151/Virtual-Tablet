@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wakelock/wakelock.dart';
 import 'package:virtual_tablet/src/mixins/validation_mixin.dart';
 import 'package:virtual_tablet/src/screens/tablet.dart';
 import 'package:virtual_tablet/src/udp.dart';
@@ -16,6 +17,8 @@ class _StartScreenState extends State<StartScreen> with ValidationMixin {
   final _buttonKey = GlobalKey<ConnectButtonState>();
 
   void _startTablet() {
+    Wakelock.enable();
+
     final pageTransition = PageRouteBuilder(
       transitionDuration: Duration(milliseconds: 500),
       reverseTransitionDuration: Duration(milliseconds: 500),
@@ -26,6 +29,8 @@ class _StartScreenState extends State<StartScreen> with ValidationMixin {
       SystemChrome.setEnabledSystemUIOverlays([SystemUiOverlay.top]);
 
       Future.delayed(Duration(milliseconds: 500)).then((value) {
+        Wakelock.disable();
+
         _buttonKey.currentState?.updateButtonState(ConnectButtonState.idle);
       });
     });
