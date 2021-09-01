@@ -10,6 +10,10 @@ class App extends StatelessWidget {
 
     return MaterialApp(
       title: "Virtual Tablet",
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+      ),
+      themeMode: ThemeMode.system,
       home: Scaffold(
         body: StartScreen(),
       ),
