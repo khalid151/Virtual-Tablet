@@ -12,8 +12,6 @@
 
 #define DEVICE_NAME "Virtual Graphics Tablet"
 #define PORT 9000
-#define PING "VTABCON"
-#define PONG "VTABOK"
 #define MAGIC "VTAB"
 
 // button state
@@ -131,24 +129,38 @@ int main(int argc, char *argv[])
     int dev = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
     prepare_device(dev);
 
-    // Setup UDP server
-    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    // Setup TCP server
+    int sockfd, connfd;
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr, client_addr;
     memset(&addr, 0, sizeof(addr));
     memset(&client_addr, 0, sizeof(client_addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(PORT);
+    addr.sin_addr.s_addr = htonl(INADDR_ANY); addr.sin_port = htons(PORT);
     if(bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         fprintf(stderr, "Failed to bind address on port %d\n", PORT);
         exit_status = EXIT_FAILURE;
         goto OUT;
     }
 
-    struct pollfd pfd = {
-        .fd = sockfd,
-        .events = POLLIN,
-        .revents = 0,
+    if(listen(sockfd, 0) < 0) {
+        perror("Listening failed\n");
+        exit_status = EXIT_FAILURE;
+        goto OUT;
+    }
+
+    socklen_t len = sizeof(client_addr);
+
+    struct pollfd fds[2] = {
+        {
+            .fd = sockfd,
+            .events = POLLIN,
+            .revents = 0,
+        },
+        {
+            .events = POLLIN,
+            .revents = 0,
+        },
     };
 
     /*
@@ -164,31 +176,31 @@ int main(int argc, char *argv[])
      */
 
     struct stylus_event event;
-    socklen_t len = sizeof(client_addr);
+    nfds_t nfds = sizeof(fds)/sizeof(struct pollfd);
 
     // Process events
-    while(!stop && poll(&pfd, 1, -1) > -1) {
-        memset(&event, 0, sizeof(event));
-        if(recvfrom(sockfd, &event, sizeof(event), MSG_DONTWAIT, (struct sockaddr*) &client_addr, &len) > 0) {
-            // Report connection to client
-            if(!memcmp(event.magic, PING, strlen(PING))) {
-                sendto(sockfd, PONG, strlen(PONG), MSG_CONFIRM, (const struct sockaddr*) &client_addr, len);
-            }
+    while(!stop && poll(fds, nfds, -1) > -1) {
+        if(fds[0].revents & POLLIN) {
+            connfd = accept(sockfd, (struct sockaddr*)&client_addr, &len);
+            fds[1].fd = connfd;
+        } else if(fds[1].revents & POLLIN) {
+            memset(&event, 0, sizeof(event));
+            if(read(connfd, &event, sizeof(event)) > 0) {
+                if(!memcmp(event.magic, MAGIC, strlen(MAGIC))) {
+                    send_event(dev, EV_ABS, ABS_X, event.x);
+                    send_event(dev, EV_ABS, ABS_Y, event.y);
+                    send_event(dev, EV_ABS, ABS_PRESSURE, event.pressure);
 
-            if(!memcmp(event.magic, MAGIC, strlen(MAGIC))) {
-                send_event(dev, EV_ABS, ABS_X, event.x);
-                send_event(dev, EV_ABS, ABS_Y, event.y);
-                send_event(dev, EV_ABS, ABS_PRESSURE, event.pressure);
-
-                switch (event.buttons) {
-                    case STYLUS_HOVER:
-                        send_event(dev, EV_SYN, SYN_REPORT, 1);
-                        break;
-                    case STYLUS_PRESS:
-                        send_event(dev, EV_KEY, BTN_TOOL_PEN, event.down);
-                        break;
-                    default:
-                        send_event(dev, EV_SYN, SYN_REPORT, 1);
+                    switch (event.buttons) {
+                        case STYLUS_HOVER:
+                            send_event(dev, EV_SYN, SYN_REPORT, 1);
+                            break;
+                        case STYLUS_PRESS:
+                            send_event(dev, EV_KEY, BTN_TOOL_PEN, event.down);
+                            break;
+                        default:
+                            send_event(dev, EV_SYN, SYN_REPORT, 1);
+                    }
                 }
             }
         }

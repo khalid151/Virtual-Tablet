@@ -18,5 +18,8 @@ clean:
 	$(MAKE) -C client clean
 	$(MAKE) -C server clean
 
+apk_install:
+	$(MAKE) -C client install
+
 memcheck:
 	$(MAKE) -C server memcheck

@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock/wakelock.dart';
 import 'package:virtual_tablet/src/mixins/validation_mixin.dart';
 import 'package:virtual_tablet/src/screens/tablet.dart';
-import 'package:virtual_tablet/src/udp.dart';
+import 'package:virtual_tablet/src/tcp.dart';
 import 'package:virtual_tablet/src/widgets/connect_button.dart';
 
 class StartScreen extends StatefulWidget {
@@ -41,11 +41,11 @@ class _StartScreenState extends State<StartScreen> with ValidationMixin {
     var ip = matches.group(1);
     var port = int.parse(matches.group(2)!);
 
-    final udp = UdpConnection();
+    final conn = TcpConnection();
 
     _buttonKey.currentState?.updateButtonState(ConnectButtonState.loading);
 
-    if (await udp.connect(ip!, port)) {
+    if (await conn.connect(ip!, port)) {
       _buttonKey.currentState?.updateButtonState(ConnectButtonState.stopped);
 
       // Only save if connection is successful

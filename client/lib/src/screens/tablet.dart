@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:virtual_tablet/src/models/stylus_packet.dart';
-import 'package:virtual_tablet/src/udp.dart';
+import 'package:virtual_tablet/src/tcp.dart';
 
 StylusPacket packet = StylusPacket();
 
@@ -40,7 +40,7 @@ class _TabletScreenState extends State<TabletScreen> {
       packet.pressure = (event.pressure * 8192).toInt();
       packet.down = event.down;
       packet.button = event.buttons;
-      UdpConnection().send(packet.compile());
+      TcpConnection().send(packet.compile());
     }
   }
 
